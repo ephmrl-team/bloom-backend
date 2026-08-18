@@ -14,11 +14,11 @@ func (r *ChatRepo) GetByID(id int) (*domain.Chat, error) {
 	var handshakeJSON []byte
 	var titlePtr *string
 
-	query := `SELECT id, members, handshake, type, title FROM chats WHERE id=$1`
+	query := `SELECT id, members, handshake, type, title, created_at FROM chats WHERE id=$1`
 
 	start := time.Now()
 
-	err := r.db.QueryRow(query, id).Scan(&chat.ID, &membersJSON, &handshakeJSON, &chat.Type, &titlePtr)
+	err := r.db.QueryRow(query, id).Scan(&chat.ID, &membersJSON, &handshakeJSON, &chat.Type, &titlePtr, &chat.CreatedAt)
 
 	duration := time.Since(start)
 

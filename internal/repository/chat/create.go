@@ -22,7 +22,7 @@ func (r *ChatRepo) Create(chat *domain.RawChat) (*domain.Chat, error) {
 		}
 	}
 
-	query := `INSERT INTO chats (members, handshake, type, title) VALUES ($1, $2, $3, $4) RETURNING id, members, handshake, type, title`
+	query := `INSERT INTO chats (members, handshake, type, title) VALUES ($1, $2, $3, $4) RETURNING id, members, handshake, type, title, created_at`
 
 	var created domain.Chat
 	var membersBytes []byte
@@ -32,7 +32,7 @@ func (r *ChatRepo) Create(chat *domain.RawChat) (*domain.Chat, error) {
 	start := time.Now()
 
 	err := r.db.QueryRow(query, membersJSON, handshakeJSON, chat.Type, chat.Title).
-		Scan(&created.ID, &membersBytes, &handshakeBytes, &created.Type, &titlePtr)
+		Scan(&created.ID, &membersBytes, &handshakeBytes, &created.Type, &titlePtr, &created.CreatedAt)
 
 	duration := time.Since(start)
 

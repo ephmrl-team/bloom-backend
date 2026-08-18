@@ -69,6 +69,7 @@ func (h *ChatHandler) GetChatsByUserID(c *fiber.Ctx) error {
 				"handshake":         chat.Handshake,
 				"last_message":      chat.LastMessage,
 				"last_read_message": chat.LastReadMessage,
+				"created_at":        chat.CreatedAt,
 			})
 		case "group":
 			member, exists := groupsMemberMap[chat.ID]
@@ -101,6 +102,7 @@ func (h *ChatHandler) GetChatsByUserID(c *fiber.Ctx) error {
 				"encrypted_group_key": encryptedGroupKey,
 				"last_message":        chat.LastMessage,
 				"last_read_message":   chat.LastReadMessage,
+				"created_at":          chat.CreatedAt,
 			})
 		}
 

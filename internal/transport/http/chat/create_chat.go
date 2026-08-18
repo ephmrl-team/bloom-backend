@@ -129,10 +129,11 @@ func (h *ChatHandler) createGroupChat(c *fiber.Ctx, sessionUser *domain.User) er
 	}
 
 	return c.JSON(fiber.Map{
-		"id":    chat.ID,
-		"type":  chat.Type,
-		"title": chat.Title,
-		"role":  "creator",
+		"id":         chat.ID,
+		"type":       chat.Type,
+		"title":      chat.Title,
+		"role":       "creator",
+		"created_at": chat.CreatedAt,
 	})
 }
 

@@ -12,7 +12,7 @@ func (r *ChatRepo) GetByUserID(userID int) ([]*domain.ChatWithLastMessage, error
 	start := time.Now()
 
 	rows, err := r.db.Query(`
-			SELECT id, members, handshake, title, type
+			SELECT id, members, handshake, title, type, created_at
 			FROM chats
 			WHERE
 				(type = 'private' AND EXISTS (
@@ -45,7 +45,7 @@ func (r *ChatRepo) GetByUserID(userID int) ([]*domain.ChatWithLastMessage, error
 		var handshakeJSON []byte
 		var titlePtr *string
 
-		if err := rows.Scan(&chat.ID, &membersJSON, &handshakeJSON, &titlePtr, &chat.Type); err != nil {
+		if err := rows.Scan(&chat.ID, &membersJSON, &handshakeJSON, &titlePtr, &chat.Type, &chat.CreatedAt); err != nil {
 			return nil, err
 		}
 

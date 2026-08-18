@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type EncryptedSyncKey struct {
 	CipherText string `json:"ciphertext" db:"ciphertext"`
 	Nonce      string `json:"nonce" db:"nonce"`
@@ -17,6 +19,7 @@ type Chat struct {
 	Handshake *Handshake `json:"handshake,omitempty"`
 	Type      string     `json:"type"`
 	Title     string     `json:"title"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
 }
 
 type RawChat struct {
@@ -24,6 +27,7 @@ type RawChat struct {
 	Handshake *Handshake `json:"handshake"`
 	Type      string     `json:"type"`
 	Title     string     `json:"title"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
 }
 
 type Member struct {
@@ -36,6 +40,7 @@ type ChatWithLastMessage struct {
 	Handshake       *Handshake `json:"handshake,omitempty"`
 	Type            string     `json:"type"`
 	Title           string     `json:"title"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 	LastMessage     *Message   `json:"last_message,omitempty"`
 	LastReadMessage *Message   `json:"last_read_message,omitempty"`
 }

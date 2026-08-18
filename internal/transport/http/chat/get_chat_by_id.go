@@ -65,12 +65,14 @@ func (h *ChatHandler) GetChatByID(c *fiber.Ctx) error {
 			"invited_by":          invitedBy,
 			"handshake":           handshake,
 			"encrypted_group_key": encryptedGroupKey,
+			"created_at":          chat.CreatedAt,
 		})
 	}
 
 	return c.JSON(fiber.Map{
-		"id":        chat.ID,
-		"members":   chat.Members,
-		"handshake": chat.Handshake,
+		"id":         chat.ID,
+		"members":    chat.Members,
+		"handshake":  chat.Handshake,
+		"created_at": chat.CreatedAt,
 	})
 }

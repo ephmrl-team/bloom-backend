@@ -14,7 +14,7 @@ func (r *ChatRepo) GetWithUsers(id int, recipient int) (*domain.Chat, error) {
 	var handshakeJSON []byte
 
 	query := `
-	SELECT id, members, handshake
+	SELECT id, members, handshake, created_at
 	FROM chats
 	WHERE EXISTS (
 		SELECT 1
@@ -30,11 +30,11 @@ func (r *ChatRepo) GetWithUsers(id int, recipient int) (*domain.Chat, error) {
 
 	start := time.Now()
 
-	err := r.db.QueryRow(query, id, recipient).Scan(&chat.ID, &membersJSON, &handshakeJSON)
+	err := r.db.QueryRow(query, id, recipient).Scan(&chat.ID, &membersJSON, &handshakeJSON, &chat.CreatedAt)
 
 	duration := time.Since(start)
 
-	metrics.ObserveDB("chat_get_with_bot_users", duration, err)
+	metrics.ObserveDB("chat_get_with_both_users", duration, err)
 
 	if err != nil {
 		return nil, err
