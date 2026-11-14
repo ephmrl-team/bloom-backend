@@ -2,6 +2,8 @@ package message
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/logger"
@@ -10,7 +12,14 @@ import (
 func (m *MessageApp) GetMessageByID(ctx context.Context, user_id, id int) (*domain.MessageWithReply, error) {
 	message, err := m.messages.GetByID(id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.NotFound("message not found")
+		}
 		logger.LogError(err.Error(), "message-app")
+		return nil, domain.Failed("failed to get message")
+	}
+
+	if message == nil {
 		return nil, domain.NotFound("message not found")
 	}
 

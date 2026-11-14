@@ -2,17 +2,26 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
+	"github.com/slipe-fun/skid-backend/internal/pkg/logger"
 )
 
 func (a *AuthApp) LoginFinish(user_id, signature string) (string, *domain.User, *domain.Session, error) {
 	user, err := a.users.GetByPublicID(user_id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil, nil, domain.NotFound("user is not found")
+		}
+		logger.LogError(err.Error(), "auth-app")
+		return "", nil, nil, domain.Failed("failed to get user")
+	}
+	if user == nil {
 		return "", nil, nil, domain.NotFound("user is not found")
 	}
 

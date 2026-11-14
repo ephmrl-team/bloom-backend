@@ -9,7 +9,7 @@ func (u *UserApp) GetAllUsers(limit, offset int) ([]*domain.User, error) {
 	users, err := u.users.GetAllUsers(limit, offset)
 	if err != nil {
 		logger.LogError(err.Error(), "user-app")
-		return nil, domain.NotFound("users not found")
+		return nil, domain.Failed("failed to get users")
 	}
 
 	if len(users) == 0 {

@@ -16,7 +16,7 @@ func (m *MessageApp) GetChatMessagesBefore(ctx context.Context, user_id, chatID,
 	messages, err := m.messages.GetChatMessagesBefore(chat.ID, beforeID, count)
 	if err != nil {
 		logger.LogError(err.Error(), "message-app")
-		return nil, domain.NotFound("messages not found")
+		return nil, domain.Failed("failed to get messages")
 	}
 
 	result := make([]*domain.MessageWithReply, len(messages))

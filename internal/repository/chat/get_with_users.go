@@ -19,7 +19,7 @@ func (r *ChatRepo) GetExistingChatUsers(userID int, ids []int) ([]int, error) {
 	}
 	defer rows.Close()
 
-	var result []int
+	result := make([]int, 0)
 
 	for rows.Next() {
 		var id int

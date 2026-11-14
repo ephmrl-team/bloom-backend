@@ -14,7 +14,7 @@ func (h *MessageHandler) GetMessageByID(c *fiber.Ctx) error {
 
 	id, err := c.ParamsInt("id")
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "invalid_params",
 			"message": "invalid request params",
 		})

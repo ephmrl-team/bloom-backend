@@ -13,7 +13,7 @@ func (u *UserApp) GetUsersByPublicIDs(ids []string) ([]domain.User, error) {
 	users, err := u.users.GetUsersByPublicIDs(ids)
 	if err != nil {
 		logger.LogError(err.Error(), "user-app")
-		return nil, domain.NotFound("users not found")
+		return nil, domain.Failed("failed to get users")
 	}
 
 	if len(users) == 0 {

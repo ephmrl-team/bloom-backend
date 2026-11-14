@@ -91,6 +91,7 @@ func (k *KeysApp) UploadIdentityKeys(user_id int, req *domain.IdentityKeysReques
 	err = k.users.UpdatePublicKeys(user_id, req.IdentityPublicKeys.MlKemPublicKey, req.IdentityPublicKeys.EcdhPublicKey, req.IdentityPublicKeys.EdPublicKey)
 	if err != nil {
 		logger.LogError(err.Error(), "keys-app")
+		_ = k.keys.Delete(user_id)
 		return nil, nil, domain.Failed("failed to update user public keys")
 	}
 

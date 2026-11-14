@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/slipe-fun/skid-backend/internal/domain"
@@ -12,6 +14,13 @@ import (
 func (a *AuthApp) LoginBegin(authLookupID string) (*domain.KeysRequest, string, string, error) {
 	user, err := a.users.GetByAuthLookupID(authLookupID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, "", "", domain.NotFound("user is not found")
+		}
+		logger.LogError(err.Error(), "auth-app")
+		return nil, "", "", domain.Failed("failed to get user")
+	}
+	if user == nil {
 		return nil, "", "", domain.NotFound("user is not found")
 	}
 
@@ -19,7 +28,8 @@ func (a *AuthApp) LoginBegin(authLookupID string) (*domain.KeysRequest, string, 
 
 	challenge, err := generator.GenerateChallenge()
 	if err != nil {
-		return nil, "", "", domain.NotFound("failed to generate challenge")
+		logger.LogError(err.Error(), "auth-app")
+		return nil, "", "", domain.Failed("failed to generate challenge")
 	}
 
 	err = a.rdb.Set(ctx, "auth:challenge:"+user.PublicID, challenge, 2*time.Minute).Err()

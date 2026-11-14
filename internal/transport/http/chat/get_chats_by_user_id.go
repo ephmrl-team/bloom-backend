@@ -1,9 +1,6 @@
 package chat
 
 import (
-	"database/sql"
-	"errors"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/slipe-fun/skid-backend/internal/domain"
 )
@@ -42,10 +39,16 @@ func (h *ChatHandler) GetChatsByUserID(c *fiber.Ctx) error {
 	}
 
 	users, err := h.userApp.GetUsersByIDs(usersIDs)
-	if err != nil && !errors.Is(sql.ErrNoRows, err) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":   "failed",
-			"message": "failed to get users",
+	if appErr, ok := err.(*domain.AppError); ok {
+		return c.Status(appErr.Status).JSON(fiber.Map{
+			"error":   appErr.Code,
+			"message": appErr.Msg,
+		})
+	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
 		})
 	}
 

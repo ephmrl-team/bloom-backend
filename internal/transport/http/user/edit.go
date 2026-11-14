@@ -19,6 +19,12 @@ func (h *UserHandler) EditUser(c *fiber.Ctx) error {
 			"message": appErr.Msg,
 		})
 	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
+		})
+	}
 
 	var req struct {
 		Username    *string `json:"username"`
@@ -68,6 +74,12 @@ func (h *UserHandler) EditUser(c *fiber.Ctx) error {
 		return c.Status(appErr.Status).JSON(fiber.Map{
 			"error":   appErr.Code,
 			"message": appErr.Msg,
+		})
+	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
 		})
 	}
 

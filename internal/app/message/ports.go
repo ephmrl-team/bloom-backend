@@ -22,5 +22,4 @@ type GroupMemberRepo interface {
 
 type ChatApp interface {
 	GetChatByID(ctx context.Context, user_id int, id int) (*domain.Chat, error)
-	HasMember(ctx context.Context, chat *domain.Chat, memberID int) bool
 }

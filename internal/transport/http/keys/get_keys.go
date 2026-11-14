@@ -27,6 +27,18 @@ func (h *KeysHandler) GetUserKeys(c *fiber.Ctx) error {
 			"message": appErr.Msg,
 		})
 	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
+		})
+	}
+	if keys == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error":   "not_found",
+			"message": "keys not found",
+		})
+	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"user_id":    keys.UserID,

@@ -7,6 +7,7 @@ import (
 type KeysRepo interface {
 	GetByUserID(user_id int, keys_type string) (*domain.EncryptedKeys, error)
 	Create(keys *domain.EncryptedKeys) (*domain.EncryptedKeys, error)
+	Delete(user_id int) error
 }
 
 type UserRepo interface {

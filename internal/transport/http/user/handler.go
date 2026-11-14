@@ -1,11 +1,11 @@
 package user
 
 type UserHandler struct {
-	userApp   UserApp
+	userApp UserApp
 }
 
 func NewUserHandler(userApp UserApp) *UserHandler {
 	return &UserHandler{
-		userApp:   userApp,
+		userApp: userApp,
 	}
 }

@@ -12,6 +12,7 @@ type ChatRepo interface {
 	GetByID(id int) (*domain.Chat, error)
 	GetWithUsers(id, recipient int) (*domain.Chat, error)
 	GetByUserID(userID int) ([]*domain.ChatWithLastMessage, error)
+	Delete(id int) error
 }
 
 type GroupMemberRepo interface {

@@ -48,10 +48,16 @@ func (h *ChatHandler) InviteUsersToGroup(c *fiber.Ctx) error {
 	}
 
 	chat, err := h.chatApp.GetChatByID(c.Context(), sessionUser.ID, chatID)
+	if appErr, ok := err.(*domain.AppError); ok {
+		return c.Status(appErr.Status).JSON(fiber.Map{
+			"error":   appErr.Code,
+			"message": appErr.Msg,
+		})
+	}
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":   "not_found",
-			"message": "chat not found",
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
 		})
 	}
 
@@ -63,10 +69,16 @@ func (h *ChatHandler) InviteUsersToGroup(c *fiber.Ctx) error {
 	}
 
 	member, err := h.chatApp.GetGroupMember(c.Context(), sessionUser.ID, chatID)
+	if appErr, ok := err.(*domain.AppError); ok {
+		return c.Status(appErr.Status).JSON(fiber.Map{
+			"error":   appErr.Code,
+			"message": appErr.Msg,
+		})
+	}
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":   "not_found",
-			"message": "chat not found",
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
 		})
 	}
 
@@ -81,7 +93,10 @@ func (h *ChatHandler) InviteUsersToGroup(c *fiber.Ctx) error {
 		Members: req.Members,
 	}, sessionUser)
 	if buildErr != nil {
-		return c.Status(buildErr.Status).JSON(buildErr.Response)
+		return c.Status(buildErr.Status).JSON(fiber.Map{
+			"error":   buildErr.Code,
+			"message": buildErr.Msg,
+		})
 	}
 
 	prevMembers, err := h.chatApp.GetGroupMembers(c.Context(), chat.ID)

@@ -6,11 +6,15 @@ import (
 )
 
 func (u *UserApp) GetUsersByIDs(ids []int) ([]domain.User, error) {
-	user, err := u.users.GetUsersByIDs(ids)
+	users, err := u.users.GetUsersByIDs(ids)
 	if err != nil {
 		logger.LogError(err.Error(), "user-app")
-		return nil, domain.NotFound("user not found")
+		return nil, domain.Failed("failed to get users")
 	}
 
-	return user, nil
+	if users == nil {
+		users = []domain.User{}
+	}
+
+	return users, nil
 }

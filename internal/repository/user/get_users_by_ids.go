@@ -9,7 +9,7 @@ import (
 )
 
 func (r *UserRepo) GetUsersByIDs(ids []int) ([]domain.User, error) {
-	var users []domain.User
+	users := make([]domain.User, 0)
 
 	query := `
 		SELECT

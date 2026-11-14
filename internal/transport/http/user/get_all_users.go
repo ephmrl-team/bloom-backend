@@ -31,6 +31,12 @@ func (h *UserHandler) GetAllUsers(c *fiber.Ctx) error {
 				"message": appErr.Msg,
 			})
 		}
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "internal_error",
+				"message": "internal error",
+			})
+		}
 
 		return c.JSON(users)
 	}
@@ -38,8 +44,8 @@ func (h *UserHandler) GetAllUsers(c *fiber.Ctx) error {
 	usersIDs := strings.Split(ids, ",")
 
 	if len(usersIDs) > 100 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":   "not_found",
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "invalid_request",
 			"message": "too many users",
 		})
 	}
@@ -49,6 +55,12 @@ func (h *UserHandler) GetAllUsers(c *fiber.Ctx) error {
 		return c.Status(appErr.Status).JSON(fiber.Map{
 			"error":   appErr.Code,
 			"message": appErr.Msg,
+		})
+	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
 		})
 	}
 

@@ -29,7 +29,7 @@ func (r *GroupMemberRepo) GetByGroupID(ctx context.Context, chatID int) ([]domai
 	}
 	defer rows.Close()
 
-	var members []domain.GroupMember
+	members := make([]domain.GroupMember, 0)
 
 	for rows.Next() {
 		var m domain.GroupMember

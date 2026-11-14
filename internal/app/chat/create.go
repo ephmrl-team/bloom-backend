@@ -42,7 +42,9 @@ func (c *ChatApp) CreateGroupChat(ctx context.Context, title string, members []d
 
 	err = c.groups.CreateMany(ctx, chat.ID, invitedByID, members)
 	if err != nil {
-		return nil, err
+		logger.LogError(err.Error(), "chat-app")
+		_ = c.chats.Delete(chat.ID)
+		return nil, domain.Failed("failed to add chat members")
 	}
 
 	return chat, nil

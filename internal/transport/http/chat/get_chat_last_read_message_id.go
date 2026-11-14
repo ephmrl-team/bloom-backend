@@ -27,6 +27,18 @@ func (h *ChatHandler) GetChatLastReadMessage(c *fiber.Ctx) error {
 			"message": appErr.Msg,
 		})
 	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
+		})
+	}
+	if message == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error":   "not_found",
+			"message": "last read message not found",
+		})
+	}
 
 	return c.JSON(fiber.Map{
 		"id": message.ID,

@@ -21,19 +21,31 @@ func (h *ChatHandler) GetChatByID(c *fiber.Ctx) error {
 	}
 
 	chat, err := h.chatApp.GetChatByID(c.Context(), session.UserID, id)
+	if appErr, ok := err.(*domain.AppError); ok {
+		return c.Status(appErr.Status).JSON(fiber.Map{
+			"error":   appErr.Code,
+			"message": appErr.Msg,
+		})
+	}
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":   "not_found",
-			"message": "chat not found",
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
 		})
 	}
 
 	if chat.Type == "group" {
 		member, err := h.chatApp.GetGroupMember(c.Context(), session.UserID, chat.ID)
+		if appErr, ok := err.(*domain.AppError); ok {
+			return c.Status(appErr.Status).JSON(fiber.Map{
+				"error":   appErr.Code,
+				"message": appErr.Msg,
+			})
+		}
 		if err != nil {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error":   "not_found",
-				"message": "chat not found",
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "internal_error",
+				"message": "internal error",
 			})
 		}
 

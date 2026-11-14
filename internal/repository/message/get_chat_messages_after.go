@@ -34,7 +34,7 @@ func (r *MessageRepo) GetChatMessagesAfter(chatID, afterID, count int) ([]*domai
 	}
 	defer rows.Close()
 
-	var messages []*domain.Message
+	messages := make([]*domain.Message, 0)
 	for rows.Next() {
 		var message domain.Message
 		err := rows.Scan(

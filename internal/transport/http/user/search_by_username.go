@@ -21,9 +21,9 @@ func (h *UserHandler) SearchByUsername(c *fiber.Ctx) error {
 	}
 
 	if len(query) == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":   "not_found",
-			"message": "users not found",
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "invalid_request",
+			"message": "query is required",
 		})
 	}
 
@@ -32,6 +32,12 @@ func (h *UserHandler) SearchByUsername(c *fiber.Ctx) error {
 		return c.Status(appErr.Status).JSON(fiber.Map{
 			"error":   appErr.Code,
 			"message": appErr.Msg,
+		})
+	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
 		})
 	}
 

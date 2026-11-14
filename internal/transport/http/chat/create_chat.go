@@ -77,7 +77,10 @@ func (h *ChatHandler) createGroupChat(c *fiber.Ctx, sessionUser *domain.User) er
 		Members: req.Members,
 	}, sessionUser)
 	if buildErr != nil {
-		return c.Status(buildErr.Status).JSON(buildErr.Response)
+		return c.Status(buildErr.Status).JSON(fiber.Map{
+			"error":   buildErr.Code,
+			"message": buildErr.Msg,
+		})
 	}
 
 	creatorGroupMember := domain.GroupMember{
@@ -223,7 +226,20 @@ func (h *ChatHandler) createPrivateChat(c *fiber.Ctx, sessionUser *domain.User) 
 	}
 
 	chat, err := h.chatApp.GetChatWithUsers(sessionUser.ID, user.ID)
-	if chat != nil || err == nil {
+	if appErr, ok := err.(*domain.AppError); ok {
+		return c.Status(appErr.Status).JSON(fiber.Map{
+			"error":   appErr.Code,
+			"message": appErr.Msg,
+		})
+	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
+		})
+	}
+
+	if chat != nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"error":   "already_exists",
 			"message": "chat with users already exists",

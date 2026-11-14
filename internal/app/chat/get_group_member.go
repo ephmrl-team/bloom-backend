@@ -8,8 +8,8 @@ import (
 	"github.com/slipe-fun/skid-backend/internal/domain"
 )
 
-func (c *ChatApp) GetGroupMember(ctx context.Context, groupID, memberID int) (*domain.GroupMember, error) {
-	member, err := c.groups.GetByMemberAndChatID(ctx, groupID, memberID)
+func (c *ChatApp) GetGroupMember(ctx context.Context, memberID, groupID int) (*domain.GroupMember, error) {
+	member, err := c.groups.GetByMemberAndChatID(ctx, memberID, groupID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.NotFound("member not found")

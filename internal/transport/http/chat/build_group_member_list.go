@@ -16,12 +16,7 @@ type MembersRequest struct {
 	Members []Member `json:"members"`
 }
 
-type Error struct {
-	Status   int
-	Response fiber.Map
-}
-
-func (h *ChatHandler) BuildGroupMemberList(req MembersRequest, sessionUser *domain.User) ([]domain.GroupMember, *Error) {
+func (h *ChatHandler) BuildGroupMemberList(req MembersRequest, sessionUser *domain.User) ([]domain.GroupMember, *domain.AppError) {
 	var members []domain.User
 	users := make(map[string]domain.User, len(req.Members))
 	var err error
@@ -33,24 +28,20 @@ func (h *ChatHandler) BuildGroupMemberList(req MembersRequest, sessionUser *doma
 		}
 
 		members, err = h.userApp.GetUsersByPublicIDs(membersIDs)
-		if appErr, ok := err.(*domain.AppError); ok {
-			return nil, &Error{
-				Status: appErr.Status,
-				Response: fiber.Map{
-					"error":   appErr.Code,
-					"message": appErr.Msg,
-				},
+		if err != nil {
+			if appErr, ok := err.(*domain.AppError); ok {
+				if appErr.Status == fiber.StatusNotFound {
+					return nil, domain.InvalidRequest("invalid members list")
+				}
+
+				return nil, appErr
 			}
+
+			return nil, domain.InternalError("internal error")
 		}
 
 		if len(members) == 0 {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "invalid_request",
-					"message": "invalid members list",
-				},
-			}
+			return nil, domain.InvalidRequest("invalid members list")
 		}
 
 		for i := range members {
@@ -66,13 +57,7 @@ func (h *ChatHandler) BuildGroupMemberList(req MembersRequest, sessionUser *doma
 
 		member, exists := users[memberObject.MemberID]
 		if !exists {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "user_not_found",
-					"message": "member " + memberObject.MemberID + " not found",
-				},
-			}
+			return nil, domain.UserNotFound("member " + memberObject.MemberID + " not found")
 		}
 
 		if member.ID == sessionUser.ID {
@@ -80,83 +65,35 @@ func (h *ChatHandler) BuildGroupMemberList(req MembersRequest, sessionUser *doma
 		}
 
 		if memberObject.Handshake.ReceiverCipherText == "" {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "no_receiver_cipher_text",
-					"message": memberObject.MemberID + ": receiver cipher text is missing",
-				},
-			}
+			return nil, domain.NoReceiverCipherText(memberObject.MemberID + ": receiver cipher text is missing")
 		}
 
 		if memberObject.Handshake.SenderEphemeralX448 == "" {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "no_sender_cipher_text",
-					"message": memberObject.MemberID + ": sender cipher text is missing",
-				},
-			}
+			return nil, domain.NoSenderCipherText(memberObject.MemberID + ": sender cipher text is missing")
 		}
 
 		if memberObject.Handshake.EncryptedSyncKey.CipherText == "" {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "no_sync_key_ciphertext",
-					"message": memberObject.MemberID + ": encrypted sync key ciphertext is missing",
-				},
-			}
+			return nil, domain.NoSyncKeyCiphertext(memberObject.MemberID + ": encrypted sync key ciphertext is missing")
 		}
 
 		if memberObject.Handshake.EncryptedSyncKey.Nonce == "" {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "no_sync_key_nonce",
-					"message": memberObject.MemberID + ": encrypted sync key nonce is missing",
-				},
-			}
+			return nil, domain.NoSyncKeyNonce(memberObject.MemberID + ": encrypted sync key nonce is missing")
 		}
 
 		if err := validations.ValidateCryptoLength(memberObject.Handshake.ReceiverCipherText, MLKEM768CiphertextSize); err != nil {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "invalid_receiver_ciphertext_length",
-					"message": memberObject.MemberID + ": invalid receiver ciphertext length",
-				},
-			}
+			return nil, domain.InvalidReceiverCiphertextLength(memberObject.MemberID + ": invalid receiver ciphertext length")
 		}
 
 		if err := validations.ValidateCryptoLength(memberObject.Handshake.SenderEphemeralX448, X448PublicKeySize); err != nil {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "invalid_sender_ciphertext_length",
-					"message": memberObject.MemberID + ": invalid sender ciphertext length",
-				},
-			}
+			return nil, domain.InvalidSenderCiphertextLength(memberObject.MemberID + ": invalid sender ciphertext length")
 		}
 
 		if err := validations.ValidateCryptoLength(memberObject.Handshake.EncryptedSyncKey.Nonce, AESGCMNonceSize); err != nil {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "invalid_nonce_length",
-					"message": memberObject.MemberID + ": invalid nonce length",
-				},
-			}
+			return nil, domain.InvalidNonceLength(memberObject.MemberID + ": invalid nonce length")
 		}
 
 		if err := validations.ValidateCryptoLength(memberObject.Handshake.EncryptedSyncKey.CipherText, SyncKeyCiphertextSize); err != nil {
-			return nil, &Error{
-				Status: fiber.ErrBadRequest.Code,
-				Response: fiber.Map{
-					"error":   "invalid_sync_key_length",
-					"message": memberObject.MemberID + ": invalid sync key length",
-				},
-			}
+			return nil, domain.InvalidSyncKeyLength(memberObject.MemberID + ": invalid sync key length")
 		}
 
 		newGroupMember := domain.GroupMember{

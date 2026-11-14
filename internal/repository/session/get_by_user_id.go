@@ -8,7 +8,7 @@ import (
 )
 
 func (r *SessionRepo) GetByUserID(id int) ([]*domain.Session, error) {
-	var sessions []*domain.Session
+	sessions := make([]*domain.Session, 0)
 
 	query := `
 	SELECT s.id, s.token, s.user_id, s.revoked_at, s.created_at, u.public_id AS user_public_id

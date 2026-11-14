@@ -37,7 +37,7 @@ func (r *ChatRepo) GetByUserID(userID int) ([]*domain.ChatWithLastMessage, error
 	}
 	defer rows.Close()
 
-	var chats []*domain.ChatWithLastMessage
+	chats := make([]*domain.ChatWithLastMessage, 0)
 
 	for rows.Next() {
 		var chat domain.ChatWithLastMessage

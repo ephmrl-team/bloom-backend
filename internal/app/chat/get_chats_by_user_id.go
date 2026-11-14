@@ -9,6 +9,10 @@ func (c *ChatApp) GetChatsByUserID(user_id int) ([]*domain.ChatWithLastMessage, 
 	chats, err := c.chats.GetByUserID(user_id)
 	if err != nil {
 		logger.LogError(err.Error(), "chat-app")
+		return nil, domain.Failed("failed to get chats")
+	}
+
+	if len(chats) == 0 {
 		return nil, domain.NotFound("chats not found")
 	}
 

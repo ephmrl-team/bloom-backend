@@ -13,8 +13,15 @@ import (
 func (u *UserApp) EditUser(user_id int, editedUser *domain.User) (*domain.User, error) {
 	user, err := u.users.GetByID(user_id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.NotFound("user not found")
+		}
 		logger.LogError(err.Error(), "user-app")
 		return nil, domain.Failed("failed to get user")
+	}
+
+	if user == nil {
+		return nil, domain.NotFound("user not found")
 	}
 
 	if editedUser.Username == "" {
@@ -39,11 +46,10 @@ func (u *UserApp) EditUser(user_id int, editedUser *domain.User) (*domain.User, 
 		existing, err := u.users.GetByUsername(editedUser.Username)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			logger.LogError(err.Error(), "user-app")
-			return nil, err
+			return nil, domain.Failed("failed to check username")
 		}
 
 		if existing != nil && existing.ID != editedUser.ID {
-			logger.LogError(err.Error(), "user-app")
 			return nil, domain.AlreadyExists("user with this username already exists")
 		}
 

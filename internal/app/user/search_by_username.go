@@ -9,7 +9,7 @@ func (u *UserApp) SearchUsersByUsername(username string, limit, offset int) ([]*
 	users, err := u.users.SearchUsersByUsername(username, limit, offset)
 	if err != nil {
 		logger.LogError(err.Error(), "user-app")
-		return nil, domain.NotFound("users not found")
+		return nil, domain.Failed("failed to search users")
 	}
 
 	if len(users) == 0 {

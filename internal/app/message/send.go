@@ -11,11 +11,7 @@ import (
 func (m *MessageApp) Send(ctx context.Context, user_id int, message *domain.SocketMessage) (*domain.MessageWithReply, *domain.Chat, error) {
 	chat, err := m.chats.GetChatByID(ctx, user_id, message.ChatID)
 	if err != nil {
-		return nil, nil, domain.NotFound("chat not found")
-	}
-
-	if !m.chats.HasMember(ctx, chat, user_id) {
-		return nil, nil, domain.NotFound("chat not found")
+		return nil, nil, err
 	}
 
 	var replyTo *domain.Message

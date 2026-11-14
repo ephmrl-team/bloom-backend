@@ -1,6 +1,9 @@
 package session
 
 import (
+	"database/sql"
+	"errors"
+
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 	"github.com/slipe-fun/skid-backend/internal/pkg/logger"
@@ -9,7 +12,13 @@ import (
 func (s *SessionApp) CreateSession(user_id int) (string, *domain.Session, error) {
 	user, err := s.users.GetByID(user_id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil, domain.NotFound("user not found")
+		}
 		logger.LogError(err.Error(), "session-app")
+		return "", nil, domain.Failed("failed to get user")
+	}
+	if user == nil {
 		return "", nil, domain.NotFound("user not found")
 	}
 
@@ -25,7 +34,7 @@ func (s *SessionApp) CreateSession(user_id int) (string, *domain.Session, error)
 	})
 	if err != nil {
 		logger.LogError(err.Error(), "session-app")
-		return "", nil, domain.Failed("failed to generate token")
+		return "", nil, domain.Failed("failed to create session")
 	}
 
 	return token, session, nil

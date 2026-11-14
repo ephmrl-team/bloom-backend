@@ -58,7 +58,9 @@ func (h *MessageHandler) Seen(c *fiber.Ctx) error {
 
 	switch chat.Type {
 	case "private":
-		h.wsHub.SendToUser(h.chatApp.GetOtherMember(chat, session.UserID).ID, b)
+		if other := h.chatApp.GetOtherMember(chat, session.UserID); other != nil {
+			h.wsHub.SendToUser(other.ID, b)
+		}
 	case "group":
 		members, err := h.chatApp.GetGroupMembers(c.Context(), chat.ID)
 		if appErr, ok := err.(*domain.AppError); ok {

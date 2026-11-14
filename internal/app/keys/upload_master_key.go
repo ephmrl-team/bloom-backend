@@ -1,7 +1,9 @@
 package keys
 
 import (
+	"database/sql"
 	"encoding/base64"
+	"errors"
 
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
@@ -11,15 +13,23 @@ import (
 func (k *KeysApp) UploadMasterKey(user_id int, key *domain.EncryptedKeys) (*domain.EncryptedKeyBytes, error) {
 	user, err := k.users.GetByID(user_id)
 	if err != nil {
-		return nil, domain.Failed("database error")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.NotFound("user not found")
+		}
+		logger.LogError(err.Error(), "keys-app")
+		return nil, domain.Failed("failed to get user")
 	}
 	if user == nil {
-		return nil, domain.Failed("user not found")
+		return nil, domain.NotFound("user not found")
 	}
 
 	_, err = k.keys.GetByUserID(user_id, key.Type)
 	if err == nil {
-		return nil, domain.Failed("key is already exists")
+		return nil, domain.AlreadyExists("key is already exists")
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		logger.LogError(err.Error(), "keys-app")
+		return nil, domain.Failed("failed to get key")
 	}
 
 	if len(key.Ciphertext) > 10000 {
@@ -33,7 +43,7 @@ func (k *KeysApp) UploadMasterKey(user_id int, key *domain.EncryptedKeys) (*doma
 	nonceBytes, err := base64.StdEncoding.DecodeString(key.Nonce)
 	if err != nil || len(nonceBytes) != 12 {
 		if err != nil {
-			logger.LogError(err.Error(), "key-app")
+			logger.LogError(err.Error(), "keys-app")
 		}
 		return nil, domain.InvalidData("invalid nonce")
 	}
@@ -41,7 +51,7 @@ func (k *KeysApp) UploadMasterKey(user_id int, key *domain.EncryptedKeys) (*doma
 	saltBytes, err := base64.StdEncoding.DecodeString(key.Salt)
 	if err != nil || len(saltBytes) != 32 {
 		if err != nil {
-			logger.LogError(err.Error(), "key-app")
+			logger.LogError(err.Error(), "keys-app")
 		}
 		return nil, domain.InvalidData("invalid salt")
 	}
@@ -56,10 +66,13 @@ func (k *KeysApp) UploadMasterKey(user_id int, key *domain.EncryptedKeys) (*doma
 		return nil, domain.InvalidData("invalid user public key")
 	}
 
-	if isValid, err := crypto.VerifyEncryptedMasterKeySignature(edPublicKey, signatureBytes, key.Ciphertext, key.Nonce, key.Salt, user.MlKemPublicKey, user.EcdhPublicKey, user.EdPublicKey); !isValid {
-		return nil, domain.InvalidData("invalid signature")
-	} else if err != nil {
+	isValid, err := crypto.VerifyEncryptedMasterKeySignature(edPublicKey, signatureBytes, key.Ciphertext, key.Nonce, key.Salt, user.MlKemPublicKey, user.EcdhPublicKey, user.EdPublicKey)
+	if err != nil {
+		logger.LogError(err.Error(), "keys-app")
 		return nil, domain.Failed("failed to verify signature")
+	}
+	if !isValid {
+		return nil, domain.InvalidData("invalid signature")
 	}
 
 	key, err = k.keys.Create(&domain.EncryptedKeys{
@@ -73,7 +86,7 @@ func (k *KeysApp) UploadMasterKey(user_id int, key *domain.EncryptedKeys) (*doma
 		},
 	})
 	if err != nil {
-		logger.LogError(err.Error(), "key-app")
+		logger.LogError(err.Error(), "keys-app")
 		return nil, domain.Failed("failed to save key")
 	}
 

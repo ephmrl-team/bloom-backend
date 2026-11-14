@@ -19,6 +19,12 @@ func (h *SessionHandler) GetUserSessions(c *fiber.Ctx) error {
 			"message": appErr.Msg,
 		})
 	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "internal_error",
+			"message": "internal error",
+		})
+	}
 
 	return c.JSON(sessions)
 }

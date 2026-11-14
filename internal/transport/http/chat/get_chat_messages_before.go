@@ -14,7 +14,7 @@ func (h *ChatHandler) GetChatMessagesBefore(c *fiber.Ctx) error {
 
 	chatID, err := c.ParamsInt("c_id")
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "invalid_params",
 			"message": "invalid request params",
 		})
@@ -22,7 +22,7 @@ func (h *ChatHandler) GetChatMessagesBefore(c *fiber.Ctx) error {
 
 	beforeID, err := c.ParamsInt("m_id")
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "invalid_params",
 			"message": "invalid request params",
 		})

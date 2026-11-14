@@ -1,6 +1,9 @@
 package session
 
 import (
+	"database/sql"
+	"errors"
+
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/logger"
 )
@@ -8,8 +11,11 @@ import (
 func (s *SessionApp) DeleteSession(user_id, id int) error {
 	session, err := s.session.GetByID(id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.NotFound("session not found")
+		}
 		logger.LogError(err.Error(), "session-app")
-		return domain.NotFound("session not found")
+		return domain.Failed("failed to get session")
 	}
 
 	if session.UserID != user_id {
