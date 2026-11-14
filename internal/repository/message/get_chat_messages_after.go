@@ -21,7 +21,7 @@ func (r *MessageRepo) GetChatMessagesAfter(chatID, afterID, count int) ([]*domai
 		reply_to
 	FROM messages
 	WHERE chat_id = $1 AND id > $2
-	ORDER BY id DESC
+	ORDER BY id ASC
 	LIMIT $3
 	`, chatID, afterID, count)
 

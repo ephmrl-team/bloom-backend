@@ -41,11 +41,5 @@ func (h *ChatHandler) GetChatMessagesAfter(c *fiber.Ctx) error {
 		})
 	}
 
-	if len(messages) == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "no_messages",
-		})
-	}
-
 	return c.JSON(messages)
 }
