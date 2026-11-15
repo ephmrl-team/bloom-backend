@@ -13,7 +13,12 @@ func (m *MessageApp) GetChatMessagesAfter(ctx context.Context, user_id, chatID, 
 		return nil, err
 	}
 
-	messages, err := m.messages.GetChatMessagesAfter(chat.ID, afterID, count)
+	var messages []*domain.Message
+	if afterID == 0 {
+		messages, err = m.messages.GetChatLatestMessages(chat.ID, count)
+	} else {
+		messages, err = m.messages.GetChatMessagesAfter(chat.ID, afterID, count)
+	}
 	if err != nil {
 		logger.LogError(err.Error(), "message-app")
 		return nil, domain.Failed("failed to get messages")
