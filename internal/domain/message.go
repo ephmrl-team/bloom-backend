@@ -4,6 +4,7 @@ import "time"
 
 type Message struct {
 	ID         int        `db:"id" json:"id"`
+	Version    string     `db:"version" json:"version"`
 	Ciphertext string     `db:"ciphertext" json:"ciphertext"`
 	Nonce      string     `db:"nonce" json:"nonce"`
 	Salt       string     `db:"salt" json:"salt"`

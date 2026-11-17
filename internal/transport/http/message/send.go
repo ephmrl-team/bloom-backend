@@ -5,6 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/slipe-fun/skid-backend/internal/domain"
+	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
+	"github.com/slipe-fun/skid-backend/internal/pkg/crypto/validations"
 )
 
 func (h *MessageHandler) Send(c *fiber.Ctx) error {
@@ -15,6 +17,7 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 	}
 
 	var req struct {
+		Version    string `json:"version"`
 		Ciphertext string `json:"ciphertext"`
 		Nonce      string `json:"nonce"`
 		Salt       string `json:"salt"`
@@ -36,7 +39,29 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 		})
 	}
 
+	if err := crypto.ValidateVersion(req.Version); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "unsupported_protocol_version",
+			"message": "unsupported protocol version",
+		})
+	}
+
+	if err := validations.ValidateCryptoLength(req.Nonce, crypto.NonceSize); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "invalid_nonce_length",
+			"message": "invalid nonce length",
+		})
+	}
+
+	if err := validations.ValidateCryptoLength(req.Salt, crypto.SaltSize); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "invalid_salt_length",
+			"message": "invalid salt length",
+		})
+	}
+
 	message, chat, err := h.messageApp.Send(c.Context(), sessionUser.ID, &domain.SocketMessage{
+		Version:    req.Version,
 		Ciphertext: req.Ciphertext,
 		Nonce:      req.Nonce,
 		Salt:       req.Salt,

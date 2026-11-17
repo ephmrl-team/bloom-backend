@@ -1,6 +1,7 @@
 package domain
 
 type SocketMessage struct {
+	Version        string `json:"version"`
 	ChatID         int    `json:"chat_id"`
 	EncryptionType string `json:"encryption_type"`
 	Ciphertext     string `json:"ciphertext"`

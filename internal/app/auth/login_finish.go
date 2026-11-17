@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 
 	"github.com/redis/go-redis/v9"
@@ -35,13 +34,13 @@ func (a *AuthApp) LoginFinish(user_id, signature string) (string, *domain.User, 
 		return "", nil, nil, domain.Failed("database error")
 	}
 
-	signatureBytes, err := base64.StdEncoding.DecodeString(signature)
-	if err != nil || len(signatureBytes) != 114 {
+	signatureBytes, err := crypto.DecodeBase64(signature)
+	if err != nil || len(signatureBytes) != crypto.SignatureSize {
 		return "", nil, nil, domain.InvalidData("invalid signature length")
 	}
 
-	edKeyBytes, err := base64.StdEncoding.DecodeString(user.EdPublicKey)
-	if err != nil || len(edKeyBytes) != 57 {
+	edKeyBytes, err := crypto.DecodeBase64(user.EdPublicKey)
+	if err != nil || len(edKeyBytes) != crypto.Ed448PublicKeySize {
 		return "", nil, nil, domain.InvalidData("invalid public key length")
 	}
 

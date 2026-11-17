@@ -2,98 +2,85 @@ package keys
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"errors"
 
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 	"github.com/slipe-fun/skid-backend/internal/pkg/logger"
+	"github.com/slipe-fun/skid-v4/pkg/identity"
 )
 
-func (k *KeysApp) UploadMasterKey(user_id int, key *domain.EncryptedKeys) (*domain.EncryptedKeyBytes, error) {
+func (k *KeysApp) UploadMasterKey(user_id int, key *identity.EncryptedMasterKey) error {
 	user, err := k.users.GetByID(user_id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domain.NotFound("user not found")
+			return domain.NotFound("user not found")
 		}
 		logger.LogError(err.Error(), "keys-app")
-		return nil, domain.Failed("failed to get user")
+		return domain.Failed("failed to get user")
 	}
 	if user == nil {
-		return nil, domain.NotFound("user not found")
+		return domain.NotFound("user not found")
 	}
 
-	_, err = k.keys.GetByUserID(user_id, key.Type)
+	_, err = k.keys.GetByUserID(user_id, "master")
 	if err == nil {
-		return nil, domain.AlreadyExists("key is already exists")
+		return domain.AlreadyExists("key is already exists")
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		logger.LogError(err.Error(), "keys-app")
-		return nil, domain.Failed("failed to get key")
+		return domain.Failed("failed to get key")
+	}
+
+	if err := crypto.ValidateVersionBytes(key.Version); err != nil {
+		return domain.InvalidData("unsupported protocol version")
 	}
 
 	if len(key.Ciphertext) > 10000 {
-		return nil, domain.InvalidData("ciphertext too large")
+		return domain.InvalidData("ciphertext too large")
 	}
-	ciphertextBytes, err := base64.StdEncoding.DecodeString(key.Ciphertext)
+
+	if len(key.Nonce) != crypto.NonceSize {
+		return domain.InvalidData("invalid nonce")
+	}
+
+	if len(key.Salt) != crypto.SaltSize {
+		return domain.InvalidData("invalid salt")
+	}
+
+	if len(key.Signature) != crypto.SignatureSize {
+		return domain.InvalidData("invalid signature length")
+	}
+
+	publicKeys, err := crypto.DecodePublicKeys(user.MlKemPublicKey, user.EcdhPublicKey, user.EdPublicKey)
 	if err != nil {
-		return nil, domain.InvalidData("invalid ciphertext format")
+		return domain.InvalidData("invalid user public key")
 	}
 
-	nonceBytes, err := base64.StdEncoding.DecodeString(key.Nonce)
-	if err != nil || len(nonceBytes) != 12 {
-		if err != nil {
-			logger.LogError(err.Error(), "keys-app")
-		}
-		return nil, domain.InvalidData("invalid nonce")
-	}
-
-	saltBytes, err := base64.StdEncoding.DecodeString(key.Salt)
-	if err != nil || len(saltBytes) != 32 {
-		if err != nil {
-			logger.LogError(err.Error(), "keys-app")
-		}
-		return nil, domain.InvalidData("invalid salt")
-	}
-
-	signatureBytes, err := base64.StdEncoding.DecodeString(key.Signature)
-	if err != nil || len(signatureBytes) != 114 {
-		return nil, domain.InvalidData("invalid signature length")
-	}
-
-	edPublicKey, err := base64.StdEncoding.DecodeString(user.EdPublicKey)
-	if err != nil || len(edPublicKey) != 57 {
-		return nil, domain.InvalidData("invalid user public key")
-	}
-
-	isValid, err := crypto.VerifyEncryptedMasterKeySignature(edPublicKey, signatureBytes, key.Ciphertext, key.Nonce, key.Salt, user.MlKemPublicKey, user.EcdhPublicKey, user.EdPublicKey)
+	isValid, err := crypto.VerifyEncryptedMasterKeySignature(publicKeys, key)
 	if err != nil {
 		logger.LogError(err.Error(), "keys-app")
-		return nil, domain.Failed("failed to verify signature")
+		return domain.Failed("failed to verify signature")
 	}
 	if !isValid {
-		return nil, domain.InvalidData("invalid signature")
+		return domain.InvalidData("invalid signature")
 	}
 
-	key, err = k.keys.Create(&domain.EncryptedKeys{
+	_, err = k.keys.Create(&domain.EncryptedKeys{
 		UserID: user_id,
-		Type:   key.Type,
+		Type:   "master",
 		EncryptedKey: domain.EncryptedKey{
-			Ciphertext: key.Ciphertext,
-			Nonce:      key.Nonce,
-			Salt:       key.Salt,
-			Signature:  key.Signature,
+			Version:    crypto.EncodeBase64(key.Version),
+			Ciphertext: crypto.EncodeBase64(key.Ciphertext),
+			Nonce:      crypto.EncodeBase64(key.Nonce),
+			Salt:       crypto.EncodeBase64(key.Salt),
+			Signature:  crypto.EncodeBase64(key.Signature),
 		},
 	})
 	if err != nil {
 		logger.LogError(err.Error(), "keys-app")
-		return nil, domain.Failed("failed to save key")
+		return domain.Failed("failed to save key")
 	}
 
-	return &domain.EncryptedKeyBytes{
-		Ciphertext: ciphertextBytes,
-		Nonce:      nonceBytes,
-		Salt:       saltBytes,
-		Signature:  signatureBytes,
-	}, nil
+	return nil
 }

@@ -8,7 +8,9 @@ import (
 
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/generator"
+	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 	"github.com/slipe-fun/skid-backend/internal/pkg/logger"
+	"github.com/slipe-fun/skid-v4/pkg/identity"
 )
 
 func (a *AuthApp) LoginBegin(authLookupID string) (*domain.KeysRequest, string, string, error) {
@@ -48,27 +50,70 @@ func (a *AuthApp) LoginBegin(authLookupID string) (*domain.KeysRequest, string, 
 		return nil, "", "", err
 	}
 
+	publicKeys, err := crypto.DecodePublicKeys(user.MlKemPublicKey, user.EcdhPublicKey, user.EdPublicKey)
+	if err != nil {
+		logger.LogError(err.Error(), "auth-app")
+		return nil, "", "", domain.Failed("failed to decode user public keys")
+	}
+
+	identityVersion, identityCiphertext, identityNonce, identitySalt, identitySignature, err := decodeEncryptedKey(encrypted_identity_keys.EncryptedKey)
+	if err != nil {
+		logger.LogError(err.Error(), "auth-app")
+		return nil, "", "", domain.Failed("failed to decode identity keys")
+	}
+
+	masterVersion, masterCiphertext, masterNonce, masterSalt, masterSignature, err := decodeEncryptedKey(encrypted_master_key.EncryptedKey)
+	if err != nil {
+		logger.LogError(err.Error(), "auth-app")
+		return nil, "", "", domain.Failed("failed to decode master key")
+	}
+
 	return &domain.KeysRequest{
 		IdentityKeys: domain.IdentityKeysRequest{
-			EncryptedSecretKeys: domain.EncryptedKey{
-				Ciphertext: encrypted_identity_keys.Ciphertext,
-				Nonce:      encrypted_identity_keys.Nonce,
-				Salt:       encrypted_identity_keys.Salt,
-				Signature:  encrypted_identity_keys.Signature,
+			EncryptedSecretKeys: identity.EncryptedSecretKeys{
+				Version:    identityVersion,
+				Ciphertext: identityCiphertext,
+				Nonce:      identityNonce,
+				Salt:       identitySalt,
+				Signature:  identitySignature,
 			},
-			IdentityPublicKeys: domain.IdentityPublicKeys{
-				MlKemPublicKey: user.MlKemPublicKey,
-				EcdhPublicKey:  user.EcdhPublicKey,
-				EdPublicKey:    user.EdPublicKey,
-			},
+			IdentityPublicKeys: publicKeys,
 		},
-		EncryptedMasterKey: domain.MasterKeyRequest{
-			EncryptedKey: domain.EncryptedKey{
-				Ciphertext: encrypted_master_key.Ciphertext,
-				Nonce:      encrypted_master_key.Nonce,
-				Salt:       encrypted_master_key.Salt,
-				Signature:  encrypted_master_key.Signature,
-			},
+		EncryptedMasterKey: identity.EncryptedMasterKey{
+			Version:    masterVersion,
+			Ciphertext: masterCiphertext,
+			Nonce:      masterNonce,
+			Salt:       masterSalt,
+			Signature:  masterSignature,
 		},
 	}, challenge, user.PublicID, nil
+}
+
+func decodeEncryptedKey(key domain.EncryptedKey) ([]byte, []byte, []byte, []byte, []byte, error) {
+	version, err := crypto.DecodeBase64(key.Version)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	ciphertext, err := crypto.DecodeBase64(key.Ciphertext)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	nonce, err := crypto.DecodeBase64(key.Nonce)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	salt, err := crypto.DecodeBase64(key.Salt)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	signature, err := crypto.DecodeBase64(key.Signature)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	return version, ciphertext, nonce, salt, signature, nil
 }

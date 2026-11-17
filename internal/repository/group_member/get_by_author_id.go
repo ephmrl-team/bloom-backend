@@ -15,7 +15,7 @@ func (r *GroupMemberRepo) GetByAuthorID(ctx context.Context, authorID int) ([]do
 	query := `
 		SELECT
 			m.chat_id, m.member_id, m.invited_by_id, m.role, m.joined_at, m.handshake,
-			k.ciphertext, k.nonce, k.salt
+			k.version, k.ciphertext, k.nonce, k.salt
 		FROM group_members m
 		LEFT JOIN group_encrypted_keys k
 			ON m.chat_id = k.chat_id AND m.member_id = k.member_id
@@ -42,6 +42,7 @@ func (r *GroupMemberRepo) GetByAuthorID(ctx context.Context, authorID int) ([]do
 			&m.Role,
 			&m.JoinedAt,
 			&handshakeBytes,
+			&m.EncryptedGroupKey.Version,
 			&m.EncryptedGroupKey.Ciphertext,
 			&m.EncryptedGroupKey.Nonce,
 			&m.EncryptedGroupKey.Salt,

@@ -1,108 +1,91 @@
 package keys
 
 import (
-	"encoding/base64"
-
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 	"github.com/slipe-fun/skid-backend/internal/pkg/logger"
+	"github.com/slipe-fun/skid-v4/pkg/identity"
 )
 
-func (k *KeysApp) UploadIdentityKeys(user_id int, req *domain.IdentityKeysRequest) (*domain.IdentityPublicKeysBytes, *domain.EncryptedKeyBytes, error) {
+func (k *KeysApp) UploadIdentityKeys(user_id int, req *domain.IdentityKeysRequest) error {
 	user, err := k.users.GetByID(user_id)
 	if err != nil || user == nil {
-		return nil, nil, domain.Failed("user not found")
+		return domain.Failed("user not found")
 	}
 
 	if user.MlKemPublicKey != "" || user.EcdhPublicKey != "" || user.EdPublicKey != "" {
-		return nil, nil, domain.InvalidData("user already have keys")
+		return domain.InvalidData("user already have keys")
 	}
 
-	signatureBytes, err := base64.StdEncoding.DecodeString(req.EncryptedSecretKeys.Signature)
-	if err != nil || len(signatureBytes) != 114 {
-		return nil, nil, domain.InvalidData("invalid signature length")
+	if err := crypto.ValidateVersionBytes(req.EncryptedSecretKeys.Version); err != nil {
+		return domain.InvalidData("unsupported protocol version")
 	}
 
-	edKeyBytes, err := base64.StdEncoding.DecodeString(req.IdentityPublicKeys.EdPublicKey)
-	if err != nil || len(edKeyBytes) != 57 {
-		return nil, nil, domain.InvalidData("invalid public key length")
+	publicID := identity.GenerateUserID(
+		req.IdentityPublicKeys.Ed448,
+		req.IdentityPublicKeys.X448,
+		req.IdentityPublicKeys.MlKem768,
+	)
+
+	if publicID != user.PublicID {
+		return domain.InvalidData("public keys do not match user ID")
 	}
 
-	ecdhBytes, err := base64.StdEncoding.DecodeString(req.IdentityPublicKeys.EcdhPublicKey)
-	if err != nil || len(ecdhBytes) != 56 {
-		return nil, nil, domain.InvalidData("invalid ecdh public key")
+	if err := (&identity.User{ID: publicID, PublicKeys: req.IdentityPublicKeys}).Validate(); err != nil {
+		return domain.InvalidData("invalid public keys")
 	}
 
-	nonceBytes, err := base64.StdEncoding.DecodeString(req.EncryptedSecretKeys.Nonce)
-	if err != nil || len(nonceBytes) != 12 {
-		return nil, nil, domain.InvalidData("invalid nonce")
+	if len(req.EncryptedSecretKeys.Signature) != crypto.SignatureSize {
+		return domain.InvalidData("invalid signature length")
 	}
 
-	saltBytes, err := base64.StdEncoding.DecodeString(req.EncryptedSecretKeys.Salt)
-	if err != nil || len(saltBytes) != 32 {
-		return nil, nil, domain.InvalidData("invalid salt")
+	if len(req.EncryptedSecretKeys.Nonce) != crypto.NonceSize {
+		return domain.InvalidData("invalid nonce")
 	}
 
-	mlKemBytes, err := base64.StdEncoding.DecodeString(req.IdentityPublicKeys.MlKemPublicKey)
-	if err != nil || len(mlKemBytes) != 1184 {
-		return nil, nil, domain.InvalidData("invalid ml-kem public key")
+	if len(req.EncryptedSecretKeys.Salt) != crypto.SaltSize {
+		return domain.InvalidData("invalid salt")
 	}
 
 	if len(req.EncryptedSecretKeys.Ciphertext) > 10000 {
-		return nil, nil, domain.InvalidData("ciphertext too large")
-	}
-	ciphertextBytes, err := base64.StdEncoding.DecodeString(req.EncryptedSecretKeys.Ciphertext)
-	if err != nil {
-		return nil, nil, domain.InvalidData("invalid ciphertext format")
+		return domain.InvalidData("ciphertext too large")
 	}
 
-	isValid, err := crypto.VerifyIdentityKeysSignature(
-		edKeyBytes,
-		signatureBytes,
-		req.EncryptedSecretKeys.Ciphertext,
-		req.EncryptedSecretKeys.Nonce,
-		req.IdentityPublicKeys.MlKemPublicKey,
-		req.IdentityPublicKeys.EcdhPublicKey,
-		req.IdentityPublicKeys.EdPublicKey,
-		req.EncryptedSecretKeys.Salt,
-	)
+	isValid, err := crypto.VerifyIdentityKeysSignature(req.IdentityPublicKeys, &req.EncryptedSecretKeys)
 	if err != nil {
-		return nil, nil, domain.Failed("error during verification")
+		return domain.Failed("error during verification")
 	}
 	if !isValid {
-		return nil, nil, domain.InvalidData("invalid identity signature")
+		return domain.InvalidData("invalid identity signature")
 	}
 
 	_, err = k.keys.Create(&domain.EncryptedKeys{
 		UserID: user_id,
 		Type:   "bundle",
 		EncryptedKey: domain.EncryptedKey{
-			Ciphertext: req.EncryptedSecretKeys.Ciphertext,
-			Nonce:      req.EncryptedSecretKeys.Nonce,
-			Signature:  req.EncryptedSecretKeys.Signature,
-			Salt:       req.EncryptedSecretKeys.Salt,
+			Version:    crypto.EncodeBase64(req.EncryptedSecretKeys.Version),
+			Ciphertext: crypto.EncodeBase64(req.EncryptedSecretKeys.Ciphertext),
+			Nonce:      crypto.EncodeBase64(req.EncryptedSecretKeys.Nonce),
+			Salt:       crypto.EncodeBase64(req.EncryptedSecretKeys.Salt),
+			Signature:  crypto.EncodeBase64(req.EncryptedSecretKeys.Signature),
 		},
 	})
 	if err != nil {
 		logger.LogError(err.Error(), "keys-app")
-		return nil, nil, domain.Failed("failed to save encrypted bundle")
+		return domain.Failed("failed to save encrypted bundle")
 	}
 
-	err = k.users.UpdatePublicKeys(user_id, req.IdentityPublicKeys.MlKemPublicKey, req.IdentityPublicKeys.EcdhPublicKey, req.IdentityPublicKeys.EdPublicKey)
+	err = k.users.UpdatePublicKeys(
+		user_id,
+		crypto.EncodeBase64(req.IdentityPublicKeys.MlKem768),
+		crypto.EncodeBase64(req.IdentityPublicKeys.X448),
+		crypto.EncodeBase64(req.IdentityPublicKeys.Ed448),
+	)
 	if err != nil {
 		logger.LogError(err.Error(), "keys-app")
 		_ = k.keys.Delete(user_id)
-		return nil, nil, domain.Failed("failed to update user public keys")
+		return domain.Failed("failed to update user public keys")
 	}
 
-	return &domain.IdentityPublicKeysBytes{
-			MlKemPublicKey: mlKemBytes,
-			EcdhPublicKey:  ecdhBytes,
-			EdPublicKey:    edKeyBytes,
-		}, &domain.EncryptedKeyBytes{
-			Ciphertext: ciphertextBytes,
-			Nonce:      nonceBytes,
-			Salt:       saltBytes,
-			Signature:  signatureBytes,
-		}, nil
+	return nil
 }

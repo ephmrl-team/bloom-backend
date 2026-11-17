@@ -2,22 +2,18 @@ package auth
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"errors"
 
 	"github.com/slipe-fun/skid-backend/internal/domain"
-	"github.com/slipe-fun/skid-backend/internal/generator"
+	"github.com/slipe-fun/skid-v4/pkg/identity"
 )
 
 func (a *AuthApp) Register(req *domain.KeysRequest) (string, *domain.User, *domain.Session, error) {
-	ecdhBytes, err := base64.StdEncoding.DecodeString(req.IdentityKeys.IdentityPublicKeys.EcdhPublicKey)
-	if err != nil {
-		return "", nil, nil, domain.InvalidData("invalid ecdh public key format")
-	}
+	publicKeys := req.IdentityKeys.IdentityPublicKeys
 
-	mlKemBytes, err := base64.StdEncoding.DecodeString(req.IdentityKeys.IdentityPublicKeys.MlKemPublicKey)
-	if err != nil {
-		return "", nil, nil, domain.InvalidData("invalid ml-kem public key format")
+	publicID := identity.GenerateUserID(publicKeys.Ed448, publicKeys.X448, publicKeys.MlKem768)
+	if err := (&identity.User{ID: publicID, PublicKeys: publicKeys}).Validate(); err != nil {
+		return "", nil, nil, domain.InvalidData("invalid public keys")
 	}
 
 	user, err := a.users.GetByAuthLookupID(req.AuthLookupID)
@@ -28,16 +24,10 @@ func (a *AuthApp) Register(req *domain.KeysRequest) (string, *domain.User, *doma
 		return "", nil, nil, domain.Failed("failed to create user")
 	}
 
-	publicID := generator.GenerateUserID(ecdhBytes, mlKemBytes)
-	username, err := generator.GenerateUsername()
-	if err != nil {
-		return "", nil, nil, domain.Failed("failed to generate username")
-	}
-
 	createdUser, err := a.users.Create(&domain.User{
 		AuthLookupID: req.AuthLookupID,
 		PublicID:     publicID,
-		Username:     username,
+		Username:     publicID,
 	})
 	if err != nil {
 		return "", nil, nil, domain.Failed("failed to create user")
@@ -47,25 +37,12 @@ func (a *AuthApp) Register(req *domain.KeysRequest) (string, *domain.User, *doma
 		_ = a.users.Delete(createdUser.ID)
 	}
 
-	_, _, err = a.keysApp.UploadIdentityKeys(createdUser.ID, &req.IdentityKeys)
-	if err != nil {
+	if err := a.keysApp.UploadIdentityKeys(createdUser.ID, &req.IdentityKeys); err != nil {
 		rollback()
 		return "", nil, nil, err
 	}
 
-	masterKeyPayload := &domain.EncryptedKeys{
-		UserID: createdUser.ID,
-		Type:   "master",
-		EncryptedKey: domain.EncryptedKey{
-			Ciphertext: req.EncryptedMasterKey.Ciphertext,
-			Nonce:      req.EncryptedMasterKey.Nonce,
-			Salt:       req.EncryptedMasterKey.Salt,
-			Signature:  req.EncryptedMasterKey.Signature,
-		},
-	}
-
-	_, err = a.keysApp.UploadMasterKey(createdUser.ID, masterKeyPayload)
-	if err != nil {
+	if err := a.keysApp.UploadMasterKey(createdUser.ID, &req.EncryptedMasterKey); err != nil {
 		rollback()
 		return "", nil, nil, err
 	}

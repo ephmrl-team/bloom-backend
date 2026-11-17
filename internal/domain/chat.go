@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type EncryptedSyncKey struct {
 	CipherText string `json:"ciphertext" db:"ciphertext"`
@@ -8,9 +11,31 @@ type EncryptedSyncKey struct {
 }
 
 type Handshake struct {
-	ReceiverCipherText  string `json:"receiver_cipher_text"`
+	Version             string `json:"version"`
+	ReceiverCipherText  string `json:"receiver_ciphertext"`
 	SenderEphemeralX448 string `json:"sender_ephemeral_x448"`
+	SenderSignature     string `json:"sender_signature"`
 	EncryptedSyncKey    `json:"encrypted_sync_key"`
+}
+
+func (h *Handshake) UnmarshalJSON(data []byte) error {
+	type handshakeAlias Handshake
+	aux := struct {
+		*handshakeAlias
+		LegacyReceiverCipherText string `json:"receiver_cipher_text"`
+	}{
+		handshakeAlias: (*handshakeAlias)(h),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if h.ReceiverCipherText == "" {
+		h.ReceiverCipherText = aux.LegacyReceiverCipherText
+	}
+
+	return nil
 }
 
 type Chat struct {

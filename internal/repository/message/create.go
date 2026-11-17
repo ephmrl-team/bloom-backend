@@ -6,14 +6,15 @@ import (
 
 func (r *MessageRepo) Create(message *domain.Message) (*domain.Message, error) {
 	query := `INSERT INTO messages
-		(ciphertext, nonce, salt, chat_id, reply_to)
-		VALUES ($1,$2,$3,$4,$5)
-		RETURNING id, ciphertext, nonce, salt, chat_id, reply_to`
+		(version, ciphertext, nonce, salt, chat_id, reply_to)
+		VALUES ($1,$2,$3,$4,$5,$6)
+		RETURNING id, version, ciphertext, nonce, salt, chat_id, reply_to`
 
 	created := domain.Message{}
 
 	err := r.db.QueryRow(
 		query,
+		message.Version,
 		message.Ciphertext,
 		message.Nonce,
 		message.Salt,
@@ -21,6 +22,7 @@ func (r *MessageRepo) Create(message *domain.Message) (*domain.Message, error) {
 		nullInt(message.ReplyTo),
 	).Scan(
 		&created.ID,
+		&created.Version,
 		&created.Ciphertext,
 		&created.Nonce,
 		&created.Salt,

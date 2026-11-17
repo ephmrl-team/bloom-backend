@@ -3,6 +3,7 @@ package auth
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/slipe-fun/skid-backend/internal/domain"
+	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 )
 
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
@@ -23,7 +24,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	pubKeys := req.IdentityKeys.IdentityPublicKeys
-	if pubKeys.MlKemPublicKey == "" || pubKeys.EcdhPublicKey == "" || pubKeys.EdPublicKey == "" {
+	if len(pubKeys.MlKem768) == 0 || len(pubKeys.X448) == 0 || len(pubKeys.Ed448) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "invalid_request",
 			"message": "missing required public keys",
@@ -31,7 +32,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	idSecret := req.IdentityKeys.EncryptedSecretKeys
-	if idSecret.Ciphertext == "" || idSecret.Nonce == "" || idSecret.Salt == "" || idSecret.Signature == "" {
+	if len(idSecret.Version) == 0 || len(idSecret.Ciphertext) == 0 || len(idSecret.Nonce) == 0 || len(idSecret.Salt) == 0 || len(idSecret.Signature) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "invalid_request",
 			"message": "missing required encrypted identity key fields",
@@ -39,10 +40,24 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	masterKey := req.EncryptedMasterKey
-	if masterKey.Ciphertext == "" || masterKey.Nonce == "" || masterKey.Salt == "" || masterKey.Signature == "" {
+	if len(masterKey.Version) == 0 || len(masterKey.Ciphertext) == 0 || len(masterKey.Nonce) == 0 || len(masterKey.Salt) == 0 || len(masterKey.Signature) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "invalid_request",
 			"message": "missing required encrypted master key fields",
+		})
+	}
+
+	if err := crypto.ValidateVersionBytes(idSecret.Version); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "unsupported_protocol_version",
+			"message": "unsupported identity key protocol version",
+		})
+	}
+
+	if err := crypto.ValidateVersionBytes(masterKey.Version); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "unsupported_protocol_version",
+			"message": "unsupported master key protocol version",
 		})
 	}
 
@@ -71,14 +86,14 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"token": token,
 		"user": fiber.Map{
-			"id":                user.PublicID,
-			"username":          user.Username,
-			"display_name":      user.DisplayName,
-			"description":       user.Description,
-			"ml_kem_public_key": user.MlKemPublicKey,
-			"ecdh_public_key":   user.EcdhPublicKey,
-			"ed_public_key":     user.EdPublicKey,
-			"date":              user.Date,
+			"id":                   user.PublicID,
+			"username":             user.Username,
+			"display_name":         user.DisplayName,
+			"description":          user.Description,
+			"ml_kem768_public_key": user.MlKemPublicKey,
+			"x448_public_key":      user.EcdhPublicKey,
+			"ed448_public_key":     user.EdPublicKey,
+			"date":                 user.Date,
 		},
 		"session": fiber.Map{
 			"id":         session.ID,

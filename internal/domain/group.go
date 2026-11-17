@@ -3,6 +3,7 @@ package domain
 import "time"
 
 type EncryptedGroupKey struct {
+	Version    string `json:"version" db:"version"`
 	Ciphertext string `json:"ciphertext" db:"ciphertext"`
 	Nonce      string `json:"nonce" db:"nonce"`
 	Salt       string `json:"salt" db:"salt"`

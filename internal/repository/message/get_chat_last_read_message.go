@@ -12,6 +12,7 @@ func (r *MessageRepo) GetChatLastReadMessage(chatID int) (*domain.Message, error
 
 	query := `SELECT
 		id,
+		version,
 		ciphertext,
 		nonce,
 		salt,

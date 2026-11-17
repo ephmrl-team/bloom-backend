@@ -12,6 +12,7 @@ func (r *MessageRepo) GetByID(id int) (*domain.Message, error) {
 
 	query := `SELECT
 		id,
+		version,
 		ciphertext,
 		nonce,
 		salt,

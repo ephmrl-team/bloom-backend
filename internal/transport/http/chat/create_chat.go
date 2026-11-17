@@ -5,14 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/slipe-fun/skid-backend/internal/domain"
+	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto/validations"
-)
-
-const (
-	MLKEM768CiphertextSize = 1088
-	AESGCMNonceSize        = 12
-	SyncKeyCiphertextSize  = 172
-	X448PublicKeySize      = 56
 )
 
 func (h *ChatHandler) CreateChat(c *fiber.Ctx) error {
@@ -144,8 +138,10 @@ func (h *ChatHandler) createPrivateChat(c *fiber.Ctx, sessionUser *domain.User) 
 	var req struct {
 		Recipient string `json:"recipient"`
 		Handshake struct {
-			ReceiverCipherText  string `json:"receiver_cipher_text"`
+			Version             string `json:"version"`
+			ReceiverCipherText  string `json:"receiver_ciphertext"`
 			SenderEphemeralX448 string `json:"sender_ephemeral_x448"`
+			SenderSignature     string `json:"sender_signature"`
 			EncryptedSyncKey    struct {
 				CipherText string `json:"ciphertext"`
 				Nonce      string `json:"nonce"`
@@ -164,6 +160,27 @@ func (h *ChatHandler) createPrivateChat(c *fiber.Ctx, sessionUser *domain.User) 
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "no_recipient",
 			"message": "no recipient",
+		})
+	}
+
+	if req.Handshake.Version == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "no_version",
+			"message": "protocol version is missing",
+		})
+	}
+
+	if err := crypto.ValidateVersion(req.Handshake.Version); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "unsupported_protocol_version",
+			"message": "unsupported protocol version",
+		})
+	}
+
+	if req.Handshake.SenderSignature == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "no_sender_signature",
+			"message": "sender signature is missing",
 		})
 	}
 
@@ -195,19 +212,23 @@ func (h *ChatHandler) createPrivateChat(c *fiber.Ctx, sessionUser *domain.User) 
 		})
 	}
 
-	if err := validations.ValidateCryptoLength(req.Handshake.ReceiverCipherText, MLKEM768CiphertextSize); err != nil {
+	if err := validations.ValidateCryptoLength(req.Handshake.ReceiverCipherText, crypto.MLKEM768CiphertextSize); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid_receiver_ciphertext_length"})
 	}
 
-	if err := validations.ValidateCryptoLength(req.Handshake.SenderEphemeralX448, X448PublicKeySize); err != nil {
+	if err := validations.ValidateCryptoLength(req.Handshake.SenderEphemeralX448, crypto.X448PublicKeySize); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid_sender_ciphertext_length"})
 	}
 
-	if err := validations.ValidateCryptoLength(req.Handshake.EncryptedSyncKey.Nonce, AESGCMNonceSize); err != nil {
+	if err := validations.ValidateCryptoLength(req.Handshake.SenderSignature, crypto.SignatureSize); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid_sender_signature_length"})
+	}
+
+	if err := validations.ValidateCryptoLength(req.Handshake.EncryptedSyncKey.Nonce, crypto.NonceSize); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid_nonce_length"})
 	}
 
-	if err := validations.ValidateCryptoLength(req.Handshake.EncryptedSyncKey.CipherText, SyncKeyCiphertextSize); err != nil {
+	if err := validations.ValidateCryptoLength(req.Handshake.EncryptedSyncKey.CipherText, crypto.SyncKeyCiphertextSize); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid_sync_key_length"})
 	}
 
@@ -247,8 +268,10 @@ func (h *ChatHandler) createPrivateChat(c *fiber.Ctx, sessionUser *domain.User) 
 	}
 
 	chat, err = h.chatApp.CreatePrivateChat(sessionUser.ID, user.ID, domain.Handshake{
+		Version:             req.Handshake.Version,
 		ReceiverCipherText:  req.Handshake.ReceiverCipherText,
 		SenderEphemeralX448: req.Handshake.SenderEphemeralX448,
+		SenderSignature:     req.Handshake.SenderSignature,
 		EncryptedSyncKey: domain.EncryptedSyncKey{
 			CipherText: req.Handshake.EncryptedSyncKey.CipherText,
 			Nonce:      req.Handshake.EncryptedSyncKey.Nonce,

@@ -44,12 +44,13 @@ func (r *GroupMemberRepo) Create(ctx context.Context, chatID int, invitedByID in
 	}
 
 	keyQuery := `
-		INSERT INTO group_encrypted_keys (chat_id, member_id, ciphertext, nonce, salt)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO group_encrypted_keys (chat_id, member_id, version, ciphertext, nonce, salt)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 	_, err = tx.ExecContext(ctx, keyQuery,
 		chatID,
 		member.MemberID,
+		member.EncryptedGroupKey.Version,
 		member.EncryptedGroupKey.Ciphertext,
 		member.EncryptedGroupKey.Nonce,
 		member.EncryptedGroupKey.Salt,
@@ -90,8 +91,8 @@ func (r *GroupMemberRepo) CreateMany(ctx context.Context, chatID int, invitedByI
 		VALUES ($1, $2, $3, $4, $5)
 	`
 	keyQuery := `
-		INSERT INTO group_encrypted_keys (chat_id, member_id, ciphertext, nonce, salt)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO group_encrypted_keys (chat_id, member_id, version, ciphertext, nonce, salt)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	stmtMember, err := tx.PrepareContext(ctx, memberQuery)
@@ -128,6 +129,7 @@ func (r *GroupMemberRepo) CreateMany(ctx context.Context, chatID int, invitedByI
 		_, err = stmtKey.ExecContext(ctx,
 			chatID,
 			member.MemberID,
+			member.EncryptedGroupKey.Version,
 			member.EncryptedGroupKey.Ciphertext,
 			member.EncryptedGroupKey.Nonce,
 			member.EncryptedGroupKey.Salt,

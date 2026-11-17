@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/slipe-fun/skid-backend/internal/domain"
+	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto/validations"
 )
 
@@ -64,6 +65,18 @@ func (h *ChatHandler) BuildGroupMemberList(req MembersRequest, sessionUser *doma
 			continue
 		}
 
+		if memberObject.Handshake.Version == "" {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": protocol version is missing")
+		}
+
+		if err := crypto.ValidateVersion(memberObject.Handshake.Version); err != nil {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": unsupported protocol version")
+		}
+
+		if memberObject.Handshake.SenderSignature == "" {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": sender signature is missing")
+		}
+
 		if memberObject.Handshake.ReceiverCipherText == "" {
 			return nil, domain.NoReceiverCipherText(memberObject.MemberID + ": receiver cipher text is missing")
 		}
@@ -80,20 +93,44 @@ func (h *ChatHandler) BuildGroupMemberList(req MembersRequest, sessionUser *doma
 			return nil, domain.NoSyncKeyNonce(memberObject.MemberID + ": encrypted sync key nonce is missing")
 		}
 
-		if err := validations.ValidateCryptoLength(memberObject.Handshake.ReceiverCipherText, MLKEM768CiphertextSize); err != nil {
+		if err := validations.ValidateCryptoLength(memberObject.Handshake.ReceiverCipherText, crypto.MLKEM768CiphertextSize); err != nil {
 			return nil, domain.InvalidReceiverCiphertextLength(memberObject.MemberID + ": invalid receiver ciphertext length")
 		}
 
-		if err := validations.ValidateCryptoLength(memberObject.Handshake.SenderEphemeralX448, X448PublicKeySize); err != nil {
+		if err := validations.ValidateCryptoLength(memberObject.Handshake.SenderEphemeralX448, crypto.X448PublicKeySize); err != nil {
 			return nil, domain.InvalidSenderCiphertextLength(memberObject.MemberID + ": invalid sender ciphertext length")
 		}
 
-		if err := validations.ValidateCryptoLength(memberObject.Handshake.EncryptedSyncKey.Nonce, AESGCMNonceSize); err != nil {
+		if err := validations.ValidateCryptoLength(memberObject.Handshake.SenderSignature, crypto.SignatureSize); err != nil {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": invalid sender signature length")
+		}
+
+		if err := validations.ValidateCryptoLength(memberObject.Handshake.EncryptedSyncKey.Nonce, crypto.NonceSize); err != nil {
 			return nil, domain.InvalidNonceLength(memberObject.MemberID + ": invalid nonce length")
 		}
 
-		if err := validations.ValidateCryptoLength(memberObject.Handshake.EncryptedSyncKey.CipherText, SyncKeyCiphertextSize); err != nil {
+		if err := validations.ValidateCryptoLength(memberObject.Handshake.EncryptedSyncKey.CipherText, crypto.SyncKeyCiphertextSize); err != nil {
 			return nil, domain.InvalidSyncKeyLength(memberObject.MemberID + ": invalid sync key length")
+		}
+
+		if memberObject.EncryptedGroupKey.Version == "" {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": encrypted group key version is missing")
+		}
+
+		if err := crypto.ValidateVersion(memberObject.EncryptedGroupKey.Version); err != nil {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": unsupported encrypted group key version")
+		}
+
+		if memberObject.EncryptedGroupKey.Ciphertext == "" {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": encrypted group key ciphertext is missing")
+		}
+
+		if err := validations.ValidateCryptoLength(memberObject.EncryptedGroupKey.Nonce, crypto.NonceSize); err != nil {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": invalid encrypted group key nonce length")
+		}
+
+		if err := validations.ValidateCryptoLength(memberObject.EncryptedGroupKey.Salt, crypto.SaltSize); err != nil {
+			return nil, domain.InvalidRequest(memberObject.MemberID + ": invalid encrypted group key salt length")
 		}
 
 		newGroupMember := domain.GroupMember{

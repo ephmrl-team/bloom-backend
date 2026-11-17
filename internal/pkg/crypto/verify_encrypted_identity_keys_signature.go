@@ -1,60 +1,36 @@
 package crypto
 
 import (
-	"encoding/base64"
+	"errors"
 
 	"github.com/cloudflare/circl/sign/ed448"
+	"github.com/slipe-fun/skid-v4/pkg/identity"
+	"github.com/slipe-fun/skid-v4/pkg/protocol"
 )
 
-func VerifyIdentityKeysSignature(
-	pubKey []byte,
-	signature []byte,
-	ciphertext,
-	nonce,
-	mlKem,
-	ecdh,
-	ed,
-	salt string,
-) (bool, error) {
+func VerifyIdentityKeysSignature(publicKeys identity.PublicKeys, encrypted *identity.EncryptedSecretKeys) (bool, error) {
+	if encrypted == nil {
+		return false, errors.New("encrypted secret keys cannot be nil")
+	}
 
-	ciphertextBytes, err := base64.StdEncoding.DecodeString(ciphertext)
+	version, err := protocol.Parse(encrypted.Version)
 	if err != nil {
 		return false, err
 	}
 
-	nonceBytes, err := base64.StdEncoding.DecodeString(nonce)
-	if err != nil {
-		return false, err
-	}
-
-	mlKemBytes, err := base64.StdEncoding.DecodeString(mlKem)
-	if err != nil {
-		return false, err
-	}
-
-	ecdhBytes, err := base64.StdEncoding.DecodeString(ecdh)
-	if err != nil {
-		return false, err
-	}
-
-	edBytes, err := base64.StdEncoding.DecodeString(ed)
-	if err != nil {
-		return false, err
-	}
-
-	saltBytes, err := base64.StdEncoding.DecodeString(salt)
-	if err != nil {
+	if err := version.Check(); err != nil {
 		return false, err
 	}
 
 	message := ConcatBytes(
-		ciphertextBytes,
-		nonceBytes,
-		saltBytes,
-		mlKemBytes,
-		ecdhBytes,
-		edBytes,
+		version.Bytes(),
+		encrypted.Ciphertext,
+		encrypted.Nonce,
+		encrypted.Salt,
+		publicKeys.MlKem768,
+		publicKeys.X448,
+		publicKeys.Ed448,
 	)
 
-	return ed448.Verify(pubKey, message, signature, ""), nil
+	return ed448.Verify(publicKeys.Ed448, message, encrypted.Signature, version.Label("secret_keys")), nil
 }

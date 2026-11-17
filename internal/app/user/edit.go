@@ -26,7 +26,7 @@ func (u *UserApp) EditUser(user_id int, editedUser *domain.User) (*domain.User, 
 
 	if editedUser.Username == "" {
 		user.Username = ""
-	} else {
+	} else if editedUser.Username != user.Username {
 		if !config.UsernameRegex.MatchString(editedUser.Username) {
 			return nil, domain.InvalidData("invalid username")
 		}

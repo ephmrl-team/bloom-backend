@@ -42,8 +42,10 @@ func (h *KeysHandler) GetUserKeys(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"user_id":    keys.UserID,
+		"version":    keys.Version,
 		"ciphertext": keys.Ciphertext,
 		"nonce":      keys.Nonce,
 		"salt":       keys.Salt,
+		"signature":  keys.Signature,
 	})
 }

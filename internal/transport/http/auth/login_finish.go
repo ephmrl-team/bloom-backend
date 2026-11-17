@@ -43,14 +43,14 @@ func (h *AuthHandler) LoginFinish(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"token": token,
 		"user": fiber.Map{
-			"id":                user.PublicID,
-			"username":          user.Username,
-			"display_name":      user.DisplayName,
-			"description":       user.Description,
-			"ml_kem_public_key": user.MlKemPublicKey,
-			"ecdh_public_key":   user.EcdhPublicKey,
-			"ed_public_key":     user.EdPublicKey,
-			"date":              user.Date,
+			"id":                   user.PublicID,
+			"username":             user.Username,
+			"display_name":         user.DisplayName,
+			"description":          user.Description,
+			"ml_kem768_public_key": user.MlKemPublicKey,
+			"x448_public_key":      user.EcdhPublicKey,
+			"ed448_public_key":     user.EdPublicKey,
+			"date":                 user.Date,
 		},
 		"session": fiber.Map{
 			"id":         session.ID,

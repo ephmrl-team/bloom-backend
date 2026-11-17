@@ -24,6 +24,7 @@ func (m *MessageApp) Send(ctx context.Context, user_id int, message *domain.Sock
 	}
 
 	newMessage, err := m.messages.Create(&domain.Message{
+		Version:    message.Version,
 		Ciphertext: message.Ciphertext,
 		Nonce:      message.Nonce,
 		Salt:       message.Salt,

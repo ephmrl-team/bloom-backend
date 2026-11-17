@@ -2,6 +2,7 @@ package auth
 
 import (
 	"github.com/slipe-fun/skid-backend/internal/domain"
+	"github.com/slipe-fun/skid-v4/pkg/identity"
 )
 
 type SessionApp interface {
@@ -9,8 +10,8 @@ type SessionApp interface {
 }
 
 type KeysApp interface {
-	UploadIdentityKeys(user_id int, req *domain.IdentityKeysRequest) (*domain.IdentityPublicKeysBytes, *domain.EncryptedKeyBytes, error)
-	UploadMasterKey(user_id int, key *domain.EncryptedKeys) (*domain.EncryptedKeyBytes, error)
+	UploadIdentityKeys(user_id int, req *domain.IdentityKeysRequest) error
+	UploadMasterKey(user_id int, key *identity.EncryptedMasterKey) error
 	GetUserKeys(user_id int, keys_type string) (*domain.EncryptedKeys, error)
 }
 

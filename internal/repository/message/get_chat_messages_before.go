@@ -13,6 +13,7 @@ func (r *MessageRepo) GetChatMessagesBefore(chatID, beforeID, count int) ([]*dom
 	rows, err := r.db.Query(`
 	SELECT
 		id,
+		version,
 		ciphertext,
 		nonce,
 		salt,
@@ -39,6 +40,7 @@ func (r *MessageRepo) GetChatMessagesBefore(chatID, beforeID, count int) ([]*dom
 		var message domain.Message
 		err := rows.Scan(
 			&message.ID,
+			&message.Version,
 			&message.Ciphertext,
 			&message.Nonce,
 			&message.Salt,

@@ -13,6 +13,7 @@ func (r *MessageRepo) GetChatLatestMessages(chatID, count int) ([]*domain.Messag
 	rows, err := r.db.Query(`
 	SELECT
 		id,
+		version,
 		ciphertext,
 		nonce,
 		salt,
@@ -22,6 +23,7 @@ func (r *MessageRepo) GetChatLatestMessages(chatID, count int) ([]*domain.Messag
 	FROM (
 		SELECT
 			id,
+			version,
 			ciphertext,
 			nonce,
 			salt,
@@ -50,6 +52,7 @@ func (r *MessageRepo) GetChatLatestMessages(chatID, count int) ([]*domain.Messag
 		var message domain.Message
 		err := rows.Scan(
 			&message.ID,
+			&message.Version,
 			&message.Ciphertext,
 			&message.Nonce,
 			&message.Salt,
