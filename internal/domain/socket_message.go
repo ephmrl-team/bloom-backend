@@ -1,11 +1,12 @@
 package domain
 
 type SocketMessage struct {
-	Version        string `json:"version"`
-	ChatID         int    `json:"chat_id"`
-	EncryptionType string `json:"encryption_type"`
-	Ciphertext     string `json:"ciphertext"`
-	Nonce          string `json:"nonce"`
-	Salt           string `json:"salt"`
-	ReplyTo        int    `json:"reply_to,omitempty"`
+	Version         string `json:"version"`
+	ChatID          int    `json:"chat_id"`
+	EncryptionType  string `json:"encryption_type"`
+	Ciphertext      string `json:"ciphertext"`
+	Nonce           string `json:"nonce"`
+	Salt            string `json:"salt"`
+	ReplyTo         int    `json:"reply_to,omitempty"`
+	ClientMessageID string `json:"client_message_id,omitempty"`
 }

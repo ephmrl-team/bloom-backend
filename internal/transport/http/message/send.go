@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/slipe-fun/skid-backend/internal/domain"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto"
 	"github.com/slipe-fun/skid-backend/internal/pkg/crypto/validations"
@@ -17,12 +18,13 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		Version    string `json:"version"`
-		Ciphertext string `json:"ciphertext"`
-		Nonce      string `json:"nonce"`
-		Salt       string `json:"salt"`
-		ChatID     int    `json:"chat_id"`
-		ReplyTo    int    `json:"reply_to"`
+		Version         string `json:"version"`
+		Ciphertext      string `json:"ciphertext"`
+		Nonce           string `json:"nonce"`
+		Salt            string `json:"salt"`
+		ChatID          int    `json:"chat_id"`
+		ReplyTo         int    `json:"reply_to"`
+		ClientMessageID string `json:"client_message_id"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -60,19 +62,33 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 		})
 	}
 
-	message, chat, err := h.messageApp.Send(c.Context(), sessionUser.ID, &domain.SocketMessage{
-		Version:    req.Version,
-		Ciphertext: req.Ciphertext,
-		Nonce:      req.Nonce,
-		Salt:       req.Salt,
-		ChatID:     req.ChatID,
-		ReplyTo:    req.ReplyTo,
+	if req.ClientMessageID != "" {
+		if _, err := uuid.Parse(req.ClientMessageID); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "invalid_client_message_id",
+				"message": "invalid client message id",
+			})
+		}
+	}
+
+	message, chat, replayed, err := h.messageApp.Send(c.Context(), sessionUser.ID, &domain.SocketMessage{
+		Version:         req.Version,
+		Ciphertext:      req.Ciphertext,
+		Nonce:           req.Nonce,
+		Salt:            req.Salt,
+		ChatID:          req.ChatID,
+		ReplyTo:         req.ReplyTo,
+		ClientMessageID: req.ClientMessageID,
 	})
 	if appErr, ok := err.(*domain.AppError); ok {
 		return c.Status(appErr.Status).JSON(fiber.Map{
 			"error":   appErr.Code,
 			"message": appErr.Msg,
 		})
+	}
+
+	if replayed {
+		return c.JSON(message)
 	}
 
 	outMsg := struct {

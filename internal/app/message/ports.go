@@ -8,7 +8,7 @@ import (
 )
 
 type MessageRepo interface {
-	Create(message *domain.Message) (*domain.Message, error)
+	Create(message *domain.Message) (*domain.Message, bool, error)
 	UpdateMessagesSeenStatus(messages []int, seenTime time.Time) error
 	GetChatLastReadMessage(chatID int) (*domain.Message, error)
 	GetChatMessagesAfter(chatID, afterID, count int) ([]*domain.Message, error)
