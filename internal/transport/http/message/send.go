@@ -71,7 +71,7 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 		}
 	}
 
-	message, chat, replayed, err := h.messageApp.Send(c.Context(), sessionUser.ID, &domain.SocketMessage{
+	message, chat, _, err := h.messageApp.Send(c.Context(), sessionUser.ID, &domain.SocketMessage{
 		Version:         req.Version,
 		Ciphertext:      req.Ciphertext,
 		Nonce:           req.Nonce,
@@ -85,10 +85,6 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 			"error":   appErr.Code,
 			"message": appErr.Msg,
 		})
-	}
-
-	if replayed {
-		return c.JSON(message)
 	}
 
 	outMsg := struct {
@@ -118,6 +114,7 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 		if other := h.chatApp.GetOtherMember(chat, sessionUser.ID); other != nil {
 			h.wsHub.SendToUser(other.ID, b)
 		}
+		h.wsHub.SendToUser(sessionUser.ID, b)
 	case "group":
 		members, err := h.chatApp.GetGroupMembers(c.Context(), chat.ID)
 		if appErr, ok := err.(*domain.AppError); ok {
